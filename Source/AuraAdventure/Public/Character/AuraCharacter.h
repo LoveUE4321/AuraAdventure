@@ -14,4 +14,6 @@ class AURAADVENTURE_API AAuraCharacter : public AAuraCharacterBase
 {
 	GENERATED_BODY()
 	
+public:
+	AAuraCharacter();
 };
