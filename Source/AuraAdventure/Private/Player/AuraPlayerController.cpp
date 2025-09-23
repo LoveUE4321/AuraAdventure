@@ -36,6 +36,73 @@ void AAuraPlayerController::SetupInputComponent()
 	EnInputCmp->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AAuraPlayerController::Move);
 }
 
+void AAuraPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	CursorTrace();
+}
+
+
+void AAuraPlayerController::CursorTrace()
+{
+	FHitResult CursorHit; 
+	GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, false, CursorHit);
+	if (!CursorHit.bBlockingHit) return;
+
+	LastActor = ThisActor;
+	ThisActor = Cast<IEnemyInterface>(CursorHit.GetActor());
+
+	/*
+	*	Line trace from cursor.
+	*	A: LastActor is null && ThisActor is null
+	*		-Do nothing
+	* 
+	*	B: LastActor is null && ThisActor is valid
+	*		-Highlight ThisActor
+	* 
+	*	C: LastActor is valid && ThisActor is null
+	*		-UnHightlight LastActor
+	* 
+	*	D:	Both actors are valid, but LastActor != ThisActor
+	*		-UnHighlight LastActor
+	*		-Highlight ThisActor
+	* 
+	*	E: Both actors are valid, but LastActor == ThisActor
+	*		-Do nothing
+	*/
+
+	if (LastActor == nullptr)
+	{
+		if (ThisActor != nullptr)
+		{
+			ThisActor->HighlightActor();
+		}
+		else
+		{
+			// Do nothing
+		}
+	}
+	else
+	{
+		if (ThisActor == nullptr)
+		{
+			LastActor->UnHighlightActor();
+		}
+		else
+		{
+			if (ThisActor != LastActor)
+			{
+				LastActor->UnHighlightActor();
+				ThisActor->HighlightActor();
+			}
+			else
+			{
+				// Do nothing
+			}
+		}
+	}
+}
 
 void AAuraPlayerController::Move(const FInputActionValue& InputActionValue)
 {
