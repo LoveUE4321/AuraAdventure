@@ -19,3 +19,12 @@ void AAuraCharacterBase::BeginPlay()
 }
 
 
+UAbilitySystemComponent* AAuraCharacterBase::GetAbilitySystemComponent() const
+{
+	return AbilitySysCmp;
+}
+
+UAttributeSet* AAuraCharacterBase::GetAttributeSet() const
+{
+	return AttributeSet;
+}

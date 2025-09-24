@@ -7,6 +7,18 @@ AAuraEnemyCharacter::AAuraEnemyCharacter()
 {
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
+	AbilitySysCmp = CreateDefaultSubobject<UAbilitySystemComponent>("AbilitySystemComponent");
+	AbilitySysCmp->SetIsReplicated(true);
+	AbilitySysCmp->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
+
+	AttributeSet = CreateDefaultSubobject<UAttributeSet>("AttributeSet");
+}
+
+void AAuraEnemyCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	AbilitySysCmp->InitAbilityActorInfo(this, this);
 }
 
 void AAuraEnemyCharacter::HighlightActor()
