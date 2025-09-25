@@ -27,10 +27,12 @@ void AAuraEffectActor::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, 
 		AAuraCharacterBase* ActorBase = Cast<AAuraCharacterBase>(OtherActor);
 		check(ActorBase);
 
-		const UAuraAttributeSet* AuraAtrSet = Cast<UAuraAttributeSet>(ActorBase->GetAttributeSet());
-		check(AuraAtrSet);
+		// Mine Test
+		//const UAuraAttributeSet* AuraAtrSet = Cast<UAuraAttributeSet>(ActorBase->GetAttributeSet());
+		//check(AuraAtrSet);
 
-		//const UAuraAttributeSet* AuraAtrSet = Cast<UAuraAttributeSet>(ASI->GetAbilitySystemComponent()->GetAttributeSet(UAuraAttributeSet::StaticClass()));
+		const UAuraAttributeSet* AuraAtrSet = Cast<UAuraAttributeSet>(ASI->GetAbilitySystemComponent()->GetAttributeSet(UAuraAttributeSet::StaticClass()));
+		check(AuraAtrSet);
 
 		UAuraAttributeSet* MutableAtrSet = const_cast<UAuraAttributeSet*>(AuraAtrSet);
 		check(MutableAtrSet);
