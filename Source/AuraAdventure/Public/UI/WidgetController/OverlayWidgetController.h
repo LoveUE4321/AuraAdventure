@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UI/WidgetController/AuraWidgetController.h"
+#include "AbilitySystem/AuraAttributeSet.h"
 #include "OverlayWidgetController.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChanged, float, NewHealth);
@@ -22,6 +23,13 @@ class AURAADVENTURE_API UOverlayWidgetController : public UAuraWidgetController
 	
 public:
 	virtual void BroadcastInitialValues() override;
+	virtual void BindCallbacksToDependencies() override;
+
+protected:
+	void OnHealthChangedData(const FOnAttributeChangeData& Data) const;
+	void OnMaxHealthChangedData(const FOnAttributeChangeData& Data) const;
+	void OnManaChangedData(const FOnAttributeChangeData& Data) const;
+	void OnMaxManaChangedData(const FOnAttributeChangeData& Data) const;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category="GAS|Attribute")

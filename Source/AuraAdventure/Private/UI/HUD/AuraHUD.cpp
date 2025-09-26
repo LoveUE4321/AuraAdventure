@@ -32,6 +32,9 @@ UOverlayWidgetController* AAuraHUD::GetOverlayWidgetController(const FAuraWidget
 		check(OverlayWidgetController);
 
 		OverlayWidgetController->SetWidgetControllerParams(Params);
+		
+		// Bing Attribute Changed Callback
+		OverlayWidgetController->BindCallbacksToDependencies();
 		return OverlayWidgetController;
 	}
 
