@@ -78,5 +78,14 @@ void AAuraEffectActor::ApplyEffectToTarget(AActor* TargetActor, TSubclassOf<UGam
 	ECHandle.AddSourceObject(this);
 
 	const FGameplayEffectSpecHandle GESpecHandle = TargetASC->MakeOutgoingSpec(GameEffectClass, 1.f, ECHandle);
-	TargetASC->ApplyGameplayEffectSpecToSelf(*GESpecHandle.Data.Get());
+	ActiveGEHandle = TargetASC->ApplyGameplayEffectSpecToSelf(*GESpecHandle.Data.Get());
+
+}
+
+void AAuraEffectActor::RemoveEffectFromTarget(AActor* TargetActor)
+{
+	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+	if (TargetASC == nullptr) return;
+
+	TargetASC->RemoveActiveGameplayEffect(ActiveGEHandle);
 }

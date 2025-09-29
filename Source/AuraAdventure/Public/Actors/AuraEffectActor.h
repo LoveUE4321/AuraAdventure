@@ -29,8 +29,10 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void ApplyEffectToTarget(AActor* TargetActor, TSubclassOf<UGameplayEffect> GameEffectClass);
 
+	UFUNCTION(BlueprintCallable)
+	void RemoveEffectFromTarget(AActor* TargetActor);
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AuraEffect")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AuraEffect")
 	TSubclassOf<UGameplayEffect> InstantGameplayEffectCalss;
 
 	/*UPROPERTY(VisibleAnywhere)
@@ -38,5 +40,8 @@ public:
 	
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<USphereComponent> Sphere;*/
+
+private:
+	FActiveGameplayEffectHandle ActiveGEHandle;;
 
 };
