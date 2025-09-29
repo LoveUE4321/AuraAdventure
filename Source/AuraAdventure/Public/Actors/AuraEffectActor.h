@@ -32,6 +32,9 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void RemoveEffectFromTarget(AActor* TargetActor);
 
+	UFUNCTION(Blueprintpure)
+	TSubclassOf<UGameplayEffect> GetGEClass() const { return InstantGameplayEffectCalss; }
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AuraEffect")
 	int32 ActorLevel = 1.f;
 public:
