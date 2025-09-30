@@ -8,22 +8,16 @@
 #include "UI/Widget/AuraUserWidget.h"
 #include "OverlayWidgetController.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChanged, float, NewHealth);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxHealthChanged, float, NewMaxHealth);
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnManaChanged, float, NewMana);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxManaChanged, float, NewMaxMana);
-
 USTRUCT(BlueprintType)
 struct FUIWidgetRow :public FTableRowBase
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FGameplayTag MassageTag = FGameplayTag();
+	FGameplayTag MessageTag = FGameplayTag();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FText MassageText = FText();
+	FText MessageText = FText();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UAuraUserWidget> MsgWidget;
@@ -31,6 +25,15 @@ struct FUIWidgetRow :public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	UTexture2D* Image = nullptr;
 };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChanged, float, NewHealth);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxHealthChanged, float, NewMaxHealth);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnManaChanged, float, NewMana);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxManaChanged, float, NewMaxMana);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FWidgetRowMessage, FUIWidgetRow, TableRow);
+
 /**
  * 
  */
@@ -62,8 +65,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Attribute")
 	FOnMaxManaChanged OnMaxManaChanged;
 
+	UPROPERTY(BlueprintAssignable, Category = "GAS|Message")
+	FWidgetRowMessage OnWidgetRowMsg;
+
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Attribute")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Message")
 	TObjectPtr<UDataTable> UIWidgetDataTable;
 
 	template<typename T>

@@ -46,11 +46,19 @@ void UOverlayWidgetController::BindCallbacksToDependencies()
 			[this](const FGameplayTagContainer& AssetTags) 
 			{
 				for (auto Tag : AssetTags)
-				{
-					FString Msg = FString::Printf(TEXT("OverlayWidgetController Effect Tag: %s"), *Tag.ToString());
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Msg);
+				{					
+					//FString Msg = FString::Printf(TEXT("OverlayWidgetController Effect Tag: %s"), *Tag.ToString());
+					//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, Msg);
 
-					GetDataTableRowByTag<FUIWidgetRow>(UIWidgetDataTable, Tag);
+					// "A.1".MatchesTag("A") will return True, "A".MatchesTag("A.1") will return False
+					// "Message.Health".MatchesTag("Message") will return True,"Message.Heath".MatchesTag("Message.Health") will return False
+
+					FGameplayTag MsgTag = FGameplayTag::RequestGameplayTag(FName("Message"));
+					if (Tag.MatchesTag(MsgTag))
+					{
+						FUIWidgetRow* Row = GetDataTableRowByTag<FUIWidgetRow>(UIWidgetDataTable, Tag);
+						OnWidgetRowMsg.Broadcast(*Row);
+					}
 				}
 			}
 		);

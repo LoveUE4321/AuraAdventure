@@ -22,6 +22,7 @@ public:
 	TObjectPtr<UObject> WidgetController;
 
 protected:
+	// Called after HUD Init
 	UFUNCTION(BlueprintImplementableEvent)
 	void WidgetControllerSet();
 };
