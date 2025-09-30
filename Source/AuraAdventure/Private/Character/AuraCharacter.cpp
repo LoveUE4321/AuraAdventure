@@ -6,6 +6,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Player/AuraPlayerController.h"
 #include "UI/HUD/AuraHUD.h"
+#include "AbilitySystem/AuraAbilitySystemComponent.h"
 
 AAuraCharacter::AAuraCharacter()
 {
@@ -42,6 +43,8 @@ void AAuraCharacter::InitAbilityActorInfo()
 	// For Mixed RepMode :The OwnerActor must be the Controller.
 	// The PlayerState's owner is  automatically set to the Controller.
 	AuraPlayerState->GetAbilitySystemComponent()->InitAbilityActorInfo(AuraPlayerState, this);
+	Cast<UAuraAbilitySystemComponent>(AuraPlayerState->GetAbilitySystemComponent())->AbilityActorInfoSet();
+
 	AbilitySysCmp = AuraPlayerState->GetAbilitySystemComponent();
 	AttributeSet = AuraPlayerState->GetAttributeSet();
 
