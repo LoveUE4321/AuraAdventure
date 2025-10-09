@@ -26,11 +26,11 @@ struct FUIWidgetRow :public FTableRowBase
 	UTexture2D* Image = nullptr;
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChanged, float, NewHealth);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxHealthChanged, float, NewMaxHealth);
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnManaChanged, float, NewMana);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxManaChanged, float, NewMaxMana);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAttributeChanged, float, NewValue);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHealthChanged, float, NewHealth);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxHealthChanged, float, NewMaxHealth);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnManaChanged, float, NewMana);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxManaChanged, float, NewMaxMana);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FWidgetRowMessage, FUIWidgetRow, TableRow);
 
@@ -47,23 +47,23 @@ public:
 	virtual void BindCallbacksToDependencies() override;
 
 protected:
-	void OnHealthChangedData(const FOnAttributeChangeData& Data) const;
+	/*void OnHealthChangedData(const FOnAttributeChangeData& Data) const;
 	void OnMaxHealthChangedData(const FOnAttributeChangeData& Data) const;
 	void OnManaChangedData(const FOnAttributeChangeData& Data) const;
-	void OnMaxManaChangedData(const FOnAttributeChangeData& Data) const;
+	void OnMaxManaChangedData(const FOnAttributeChangeData& Data) const;*/
 
 public:
 	UPROPERTY(BlueprintAssignable, Category="GAS|Attribute")
-	FOnHealthChanged OnHealthChanged;
+	FOnAttributeChanged OnHealthChanged;
 	
 	UPROPERTY(BlueprintAssignable, Category="GAS|Attribute")
-	FOnMaxHealthChanged OnMaxHealthChanged;
+	FOnAttributeChanged OnMaxHealthChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Attribute")
-	FOnManaChanged OnManaChanged;
+	FOnAttributeChanged OnManaChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Attribute")
-	FOnMaxManaChanged OnMaxManaChanged;
+	FOnAttributeChanged OnMaxManaChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "GAS|Message")
 	FWidgetRowMessage OnWidgetRowMsg;
