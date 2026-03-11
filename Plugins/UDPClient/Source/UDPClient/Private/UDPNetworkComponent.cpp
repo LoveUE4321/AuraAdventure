@@ -8,11 +8,16 @@
 #include "IPAddress.h"
 #include "Interfaces/IPv4/IPv4Address.h"
 
+#ifdef UDPNETCMP
+
 
 UUDPNetworkComponent::UUDPNetworkComponent()
+    :MsgKey(TEXT("LOC:"))
 {
     PrimaryComponentTick.bCanEverTick = true;
     PrimaryComponentTick.bStartWithTickEnabled = true;
+
+    UDPClients.Empty();
 }
 
 void UUDPNetworkComponent::BeginPlay()
@@ -27,7 +32,10 @@ void UUDPNetworkComponent::BeginPlay()
 
 void UUDPNetworkComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    Disconnect();
+    if (bAutoConnect)
+    {
+        Disconnect();
+    }
     Super::EndPlay(EndPlayReason);
 }
 
@@ -65,13 +73,14 @@ void UUDPNetworkComponent::TickComponent(float DeltaTime, ELevelTick TickType,
     }
 }
 
-bool UUDPNetworkComponent::Connect()
+bool UUDPNetworkComponent::Connect(int32 DevNum, FString DevSN, FString Progress, EUDPGameState ClientGS)
 {
     if (bIsConnected)
     {
         UE_LOG(LogTemp, Warning, TEXT("UDP Network: Already connected"));
         return true;
     }
+    UDPClients.Empty();
 
     // 初始化Socket
     InitializeSockets();
@@ -81,8 +90,15 @@ bool UUDPNetworkComponent::Connect()
         bIsConnected = true;
         ConnectionStatus = "Connected";
         OnUDPNetEvent.Broadcast(ConnectionStatus);
+               
+        TSharedPtr<FJsonObject> InfoObj = MakeShareable(new FJsonObject);
+        InfoObj->SetNumberField("Num", DevNum);
+        InfoObj->SetNumberField("State", ClientGS);
+        InfoObj->SetStringField("SN", DevSN);
+        InfoObj->SetStringField("Progress", Progress);
 
-        SendString(TEXT("CONNECT"));
+        auto JsonObj = CreateJsonObject(EUDPMsgType::Connect, InfoObj);
+        SendJson(JsonObj);
 
         UE_LOG(LogTemp, Log, TEXT("UDP Network: Connected successfully"));
         UE_LOG(LogTemp, Log, TEXT("  Listening on port: %d"), LocalPort);
@@ -103,13 +119,16 @@ void UUDPNetworkComponent::Disconnect()
         return;
     }
 
-    SendString(TEXT("DISCONNECT"));
+    auto JsonObj = CreateJsonObject(EUDPMsgType::DisConnect);
+    SendJson(JsonObj);
 
     CleanupSockets();
 
     bIsConnected = false;
     ConnectionStatus = "Disconnected";
     OnUDPNetEvent.Broadcast(ConnectionStatus);
+
+    UDPClients.Empty();
 
     UE_LOG(LogTemp, Log, TEXT("UDP Network: Disconnected"));
 }
@@ -257,7 +276,7 @@ void UUDPNetworkComponent::CleanupSockets()
     }
 }
 
-bool UUDPNetworkComponent::SendString(const FString& Message)
+bool UUDPNetworkComponent::SendString(EUDPMsgType MsgType, const FString& Message)
 {
     return SendTo(Message, RemoteIP, RemotePort);
 }
@@ -265,6 +284,11 @@ bool UUDPNetworkComponent::SendString(const FString& Message)
 bool UUDPNetworkComponent::SendBytes(const TArray<uint8>& Data)
 {
     return SendDataInternal(Data, RemoteIP, RemotePort);
+}
+
+bool UUDPNetworkComponent::SendJson(TSharedPtr<FJsonObject> JsonObj)
+{
+    return SendTo(JsonObj, RemoteIP, RemotePort);
 }
 
 bool UUDPNetworkComponent::SendTo(const FString& Message, const FString& TargetIP, int32 TargetPort)
@@ -276,6 +300,25 @@ bool UUDPNetworkComponent::SendTo(const FString& Message, const FString& TargetI
 
     return SendDataInternal(Data, TargetIP, TargetPort);
 }
+
+bool UUDPNetworkComponent::SendTo(TSharedPtr<FJsonObject> JsonObj, const FString& TargetIP, int32 TargetPort)
+{
+    if (JsonObj == nullptr)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Cannot send Json Object: Obj is null."));
+        return false;
+    }
+
+    FString StrMsg = JsonObjectToString(JsonObj);
+
+    // 转换字符串到字节数组
+    TArray<uint8> Data;
+    FTCHARToUTF8 Converter(*StrMsg);
+    Data.Append((uint8*)Converter.Get(), Converter.Length());
+
+    return SendDataInternal(Data, TargetIP, TargetPort);
+}
+
 
 bool UUDPNetworkComponent::SendDataInternal(const TArray<uint8>& Data, const FString& IP, int32 Port)
 {
@@ -363,8 +406,8 @@ void UUDPNetworkComponent::ReceiveData()
                 }
 
                 // 在游戏线程中处理数据
-                AsyncTask(ENamedThreads::GameThread, [this, ValidData, SenderIP]() {
-                    ParseReceivedPacket(ValidData, SenderIP);
+                AsyncTask(ENamedThreads::GameThread, [this, ValidData, ReceivedString,SenderIP]() {
+                    ParseReceivedPacket(ValidData, ReceivedString, SenderIP);
                     });
             }
         }
@@ -373,28 +416,29 @@ void UUDPNetworkComponent::ReceiveData()
 
 void UUDPNetworkComponent::ProcessReceivedData()
 {
-    // 处理字符串队列
-    FString ReceivedString;
-    while (ReceivedStringQueue.Dequeue(ReceivedString))
-    {
-        OnDataReceived.Broadcast(ReceivedString);
-    }
+    //// 处理字符串队列
+    //FString ReceivedString;
+    //while (ReceivedStringQueue.Dequeue(ReceivedString))
+    //{
+    //    OnDataReceived.Broadcast(ReceivedString);
+    //}
 
-    // 处理原始数据队列
-    TArray<uint8> ReceivedData;
-    while (ReceivedDataQueue.Dequeue(ReceivedData))
-    {
-        // 原始数据广播在ParseReceivedPacket中处理
-    }
+    //// 处理原始数据队列
+    //TArray<uint8> ReceivedData;
+    //while (ReceivedDataQueue.Dequeue(ReceivedData))
+    //{
+    //    // 原始数据广播在ParseReceivedPacket中处理
+    //}
 }
 
-void UUDPNetworkComponent::ParseReceivedPacket(const TArray<uint8>& Data, const FString& FromAddress)
+void UUDPNetworkComponent::ParseReceivedPacket(const TArray<uint8>& Data, const FString& MsgStr, const FString& FromAddress)
 {
     // 广播原始数据
-    OnRawDataReceived.Broadcast(Data, FromAddress);
+    //OnRawDataReceived.Broadcast(Data, FromAddress);
 
     // 这里可以添加自定义协议解析逻辑
     // 例如：JSON解析、自定义二进制格式等
+    HandleRecvMsg(MsgStr);
 }
 
 TArray<FString> UUDPNetworkComponent::GetAvailableAdapters() const
@@ -436,10 +480,40 @@ void UUDPNetworkComponent::SetCurrentCamera(UCameraComponent* Camera)
     CurrentCamera = Camera;
 }
 
+TArray<FClientInfo> UUDPNetworkComponent::GetUDPClient() const
+{
+    return UDPClients;
+}
 
+void UUDPNetworkComponent::CreateRoomDone(FString RoomName)
+{
+    TSharedPtr<FJsonObject> JsonCreate = MakeShareable(new FJsonObject);
+    JsonCreate->SetNumberField("Num", m_DevNum);  
+    JsonCreate->SetNumberField("State", (EUDPGameState)EUDPGameState::GS_Create);
+    JsonCreate->SetStringField("SN", m_DevSN);
+    JsonCreate->SetStringField("Room", RoomName);
+
+    auto JsonObj = CreateJsonObject(EUDPMsgType::StatusUpdate, JsonCreate);
+    SendJson(JsonObj);   
+}
+
+void UUDPNetworkComponent::SetClientInfo(TMap<int32, FString> DevInfo, FString Progress, EUDPGameState ClientGS)
+{
+    for (auto info : DevInfo)
+    {
+        m_DevNum = info.Key;
+        m_DevSN = info.Value;
+    }
+
+    m_ClientPro = Progress;
+    m_ClientGS = ClientGS;
+}
+
+//
 void UUDPNetworkComponent::UpdateHeartbeat()
 {
-    SendString(TEXT("PING"));    
+    auto JsonObj = CreateJsonObject(EUDPMsgType::Heartbeat);
+    SendJson(JsonObj);
 
     FTimespan ThreadWaitTime = FTimespan::FromMilliseconds(100);
     float CurrentTime = ThreadWaitTime.GetTotalSeconds();
@@ -448,13 +522,226 @@ void UUDPNetworkComponent::UpdateHeartbeat()
         // no heartbeat update
         UE_LOG(LogTemp, Error, TEXT("UDP Unconnect ....."));
 
+        // ???
+        auto JsonDis = CreateJsonObject(EUDPMsgType::DisConnect);
+        SendJson(JsonDis);
     }
 }
 
 void UUDPNetworkComponent::UpdateCameraPostion()
 {
-    // Translate Vector to String.
-    FString PosStr = CurrentCamera->GetComponentLocation().ToString();
-       
-    SendString(PosStr);
+    if (CurrentCamera == nullptr)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Current Camera is Null ....."));
+        return;
+    }
+
+    auto JsonObj = CreateJsonObject(EUDPMsgType::Location, CurrentCamera->GetComponentLocation());       
+    SendTo(JsonObj, RemoteIP, RemotePort);
 }
+
+void UUDPNetworkComponent::HandleRecvMsg(const FString& Msg)
+{
+    auto JsonMsg = ParseJsonString(Msg);
+    if (JsonMsg == nullptr)
+    {
+        return;
+    }
+
+    EUDPMsgType Type = (EUDPMsgType)JsonMsg->GetIntegerField(TEXT("type"));
+    switch (Type)
+    {
+    case EUDPMsgType::Ack:
+        break;
+    case EUDPMsgType::Join:
+    {
+        FString StrName = JsonMsg->GetStringField(TEXT("sender"));
+
+        /*for (auto Value : UDPClients)
+        {
+            if (Value.ClientName.Equals(StrName))
+                return;
+        }*/
+
+        FClientInfo Info;
+        Info.ClientName = StrName;
+        Info.Location = FVector::Zero();
+        UDPClients.Add(Info);
+
+        OnClientStateUpdate.Broadcast(Info, true);
+    }        
+        break;
+    case EUDPMsgType::Location:
+    {
+        TSharedPtr<FJsonObject> DataObj = JsonMsg->GetObjectField(TEXT("data"));
+        if (DataObj == nullptr)
+        {
+            UE_LOG(LogTemp, Error, TEXT("Failed to get Json Data."));
+            return;
+        }
+
+        FVector TempLoc(DataObj->GetNumberField(TEXT("x")),
+            DataObj->GetNumberField(TEXT("y")),
+            DataObj->GetNumberField(TEXT("z")));
+        FString StrName = JsonMsg->GetStringField(TEXT("sender"));
+
+        //UE_LOG(LogTemp, Error, TEXT("Json Str: %s"), *TempLoc.ToString());
+
+        for (auto &Value : UDPClients)
+        {
+            if (Value.ClientName.Equals(StrName))
+            {
+                Value.Location = TempLoc;
+                break;
+            }
+        }
+
+        //OnClientStateUpdate.Broadcast(UDPClients);
+    }        
+        break;
+    case EUDPMsgType::DisConnect:
+    {
+        FString StrName = JsonMsg->GetStringField(TEXT("sender"));
+
+        int32 Index = -1;
+        for (auto& Value : UDPClients)
+        {
+            Index++;
+            if (Value.ClientName.Equals(StrName) && Index != -1)
+            {
+                OnClientStateUpdate.Broadcast(Value, false);
+
+                UDPClients.RemoveAt(Index);
+                break;
+            }
+        }
+    }
+        break;
+    case EUDPMsgType::StatusUpdate:
+    {
+        TSharedPtr<FJsonObject> DataObj = JsonMsg->GetObjectField(TEXT("data"));
+        if (DataObj == nullptr)
+        {
+            UE_LOG(LogTemp, Error, TEXT("Failed to get Json Data."));
+            return;
+        }
+        m_DevNum = DataObj->GetNumberField(TEXT("Num"));
+        m_ClientGS = (EUDPGameState)DataObj->GetNumberField(TEXT("State"));
+        m_DevSN = DataObj->GetStringField(TEXT("SN"));
+        //m_ClientPro = DataObj->GetStringField(TEXT("Progress"));
+        FString RoomStr = DataObj->GetStringField(TEXT("Room"));
+
+        switch (m_ClientGS)
+        {
+        case EUDPGameState::GS_Create:
+            OnHostCreateRoom.Broadcast(RoomStr);
+            break;
+        case EUDPGameState::GS_Join:
+            OnClientFindRoom.Broadcast(RoomStr);
+            break;
+        }
+    }
+        break;
+    default:
+        break;
+    }
+}
+
+TSharedPtr<FJsonObject> UUDPNetworkComponent::CreateJsonObject(EUDPMsgType Type)
+{
+    // 创建根对象
+    TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject);
+
+    // 添加基本类型
+    RootObject->SetNumberField("type", Type);
+    RootObject->SetStringField("sender", ClientName);
+    RootObject->SetStringField("receiver", RemoteIP);
+    RootObject->SetStringField("id", "27315");
+
+    int64 Timestamp = FDateTime::UtcNow().ToUnixTimestamp();
+    RootObject->SetNumberField("timestamp", Timestamp);
+
+    // 添加嵌套对象
+    //TSharedPtr<FJsonObject> PositionObject = MakeShareable(new FJsonObject);
+    //RootObject->SetObjectField("data", PositionObject);
+
+    return RootObject;
+}
+
+TSharedPtr<FJsonObject> UUDPNetworkComponent::CreateJsonObject(EUDPMsgType Type, FVector Location)
+{
+    TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject);
+
+    RootObject->SetNumberField("type", Type);
+    RootObject->SetStringField("sender", ClientName);
+    RootObject->SetStringField("receiver", RemoteIP);
+    RootObject->SetStringField("id", "23715");
+
+    int64 Timestamp = FDateTime::UtcNow().ToUnixTimestamp();
+    RootObject->SetNumberField("timestamp", Timestamp);
+
+    // 添加嵌套对象
+    TSharedPtr<FJsonObject> PositionObject = MakeShareable(new FJsonObject);
+    PositionObject->SetNumberField("x", Location.X);
+    PositionObject->SetNumberField("y", Location.Y);
+    PositionObject->SetNumberField("z", Location.Z);
+    RootObject->SetObjectField("data", PositionObject);
+
+    return RootObject;
+}
+
+TSharedPtr<FJsonObject> UUDPNetworkComponent::CreateJsonObject(EUDPMsgType Type, TSharedPtr<FJsonObject>  JsonObj)
+{
+    // 创建根对象
+    TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject);
+
+    // 添加基本类型
+    RootObject->SetNumberField("type", Type);
+    RootObject->SetStringField("sender", ClientName);
+    RootObject->SetStringField("receiver", RemoteIP);
+    RootObject->SetStringField("id", "27315");
+
+    int64 Timestamp = FDateTime::UtcNow().ToUnixTimestamp();
+    RootObject->SetNumberField("timestamp", Timestamp);
+
+    // 添加嵌套对象
+    RootObject->SetObjectField("data", JsonObj);
+
+    return RootObject;
+}
+
+FString UUDPNetworkComponent::JsonObjectToString(const TSharedPtr<FJsonObject>& JsonObject, bool bPrettyPrint)
+{
+    FString OutputString;
+
+    // 使用 JsonWriter 序列化
+    TSharedRef<TJsonWriter<TCHAR>> JsonWriter = bPrettyPrint ?
+        TJsonWriterFactory<TCHAR>::Create(&OutputString, 0) :  // 紧凑格式
+        TJsonWriterFactory<TCHAR>::Create(&OutputString);      // 格式化（缩进）
+
+    // 写入对象
+    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
+
+    return OutputString;
+}
+
+TSharedPtr<FJsonObject> UUDPNetworkComponent::ParseJsonString(const FString& JsonString)
+{
+    TSharedPtr<FJsonObject> JsonObject;
+
+    // 创建 JsonReader
+    TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(JsonString);
+
+    // 反序列化
+    if (FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid())
+    {
+        return JsonObject;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to parse JSON: %s"), *JsonReader->GetErrorMessage());
+        return nullptr;
+    }
+}
+
+#endif
